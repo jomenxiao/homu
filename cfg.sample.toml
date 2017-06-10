@@ -21,7 +21,8 @@ app_client_secret = ""
 #"""
 
 [web]
-
+# The ip homu used
+host = "0.0.0.0"
 # The port homu listens on
 port = 54856
 
@@ -73,6 +74,14 @@ secret = ""
 #
 ## found under <https://travis-ci.org/profile/info>.
 #token = ""
+
+# found travis api document
+# https://docs.travis-ci.com/user/notifications/
+# Make sure you use the correct config URL, the .org and .com 
+# have different keys!
+# https://api.travis-ci.org/config
+# https://api.travis-ci.com/config
+#public_key_url="https://api.travis-ci.org/config" 
 
 ## Use the Status API
 #[repo.NAME.status]

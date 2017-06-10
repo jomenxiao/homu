@@ -6,6 +6,9 @@ import sys
 import traceback
 import requests
 import time
+import base64
+from OpenSSL.crypto import verify, load_publickey, FILETYPE_PEM, X509
+from OpenSSL.crypto import Error as SignatureError
 
 def github_set_ref(repo, ref, sha, *, force=False, auto_create=True):
     url = repo._build_url('git', 'refs', ref, base_url=repo._api)
@@ -88,3 +91,21 @@ def retry_until(inner, fail, state):
         traceback.print_exception(*exc_info)
 
         fail(err)
+
+
+def get_travis_pubilc_key(travis_pubilc_key_url):
+    try:
+        key_detail = requests.get(travis_pubilc_key_url).json()
+    except Exception as e:
+        print('* Get travis public_key url error: {}'.format(e))
+        return False
+
+    return key_detail['config']['notifications']['webhook']['public_key']
+
+def check_authorized(signature, public_key, payload):
+    signature = base64.b64decode(signature)
+    pkey_public_key = load_publickey(FILETYPE_PEM, public_key)
+    certificate = X509()
+    certificate.set_pubkey(pkey_public_key)
+    verify(certificate, signature, payload, str('sha1'))
+

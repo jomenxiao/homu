@@ -565,18 +565,30 @@ def travis():
 
     repo_cfg = g.repo_cfgs[repo_label]
     token = repo_cfg['travis']['token']
-    auth_header = request.headers['Authorization']
-    code = hashlib.sha256(('{}/{}{}'.format(state.owner, state.name, token)).encode('utf-8')).hexdigest()
-    if auth_header != code:
-        # this isn't necessarily an error, e.g. maybe someone is
-        # fabricating travis notifications to try to trick Homu, but,
-        # I imagine that this will most often occur because a repo is
-        # misconfigured.
-        logger.warn('authorization failed for {}, maybe the repo has the wrong travis token? ' \
-                    'header = {}, computed = {}'
-                    .format(state, auth_header, code))
-        abort(400, 'Authorization failed')
-
+    lazy_debug(logger, lambda:'request header details {}'.format(request.headers))
+    if 'Authorization' in request.headers.keys():
+        auth_header = request.headers['Authorization']
+        code = hashlib.sha256(('{}/{}{}'.format(state.owner, state.name, token)).encode('utf-8')).hexdigest()
+        if auth_header != code:
+            # this isn't necessarily an error, e.g. maybe someone is
+            # fabricating travis notifications to try to trick Homu, but,
+            # I imagine that this will most often occur because a repo is
+            # misconfigured.
+            logger.warn('authorization failed for {}, maybe the repo has the wrong travis token? ' \
+                        'header = {}, computed = {}'
+                        .format(state, auth_header, code))
+            abort(400, 'Authorization failed')
+    elif 'Signature' in request.headers.keys():
+        public_key = utils.get_travis_pubilc_key(repo_cfg['travis']['public_key_url'])
+        if public_key:
+            try:
+                utils.check_authorized(request.headers['Signature'], public_key, request.forms.payload)
+            except Exception as e:
+                logger.warn('check travis data signature error: {}'.format(e))
+                abort(400, 'Signature failed')
+        else:
+            abort(400, 'Get public_key failed')
+                
     succ = info['result'] == 0
 
     report_build_res(succ, info['build_url'], 'travis', state, logger, repo_cfg)
